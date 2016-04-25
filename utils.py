@@ -30,4 +30,3 @@ class LocalConfigParser(object):
         except Exception as e:
             print {"blunder opening configuration ": e}
             return {}
-

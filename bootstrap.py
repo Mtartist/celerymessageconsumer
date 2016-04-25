@@ -3,6 +3,20 @@ from celery import Celery
 from celery import bootsteps
 from kombu import Consumer, Exchange, Queue
 from Publisher import Publisher
+from utils import LocalConfigParser
+
+
+rabbit_configs = LocalConfigParser.parse_configs("RABBIT")
+sdp_configs = LocalConfigParser.parse_configs("SDP")
+print "CONFILS", rabbit_configs
+
+host = rabbit_configs['rabbithost']
+username = rabbit_configs['rabbitusername']
+password = rabbit_configs['rabbitpassword']
+port = rabbit_configs['rabbitport']
+vhost = rabbit_configs['rabbitvhost']
+sdp_url = sdp_configs["url"]
+bulk_url = sdp_configs["bulk_url"]
 
 routing_key = 'ped_routing_key'
 queue_name = 'pedQueue'
@@ -25,7 +39,15 @@ class MyConsumerStep(bootsteps.ConsumerStep):
     def handle_message(self, body, message):
         print('Received message: {0!r}'.format(body))
         message.ack()
-app.steps['consumer'].add(MyConsumerStep)
+
+BROKER_URL = 'amqp://{user}:{password}@{host}:{port}//'.format(
+    user=username,
+    password=password,
+    host=host,
+    port=port
+)
+celery = Celery(broker=BROKER_URL)
+celery.steps['consumer'].add(MyConsumerStep)
 
 
 def send_me_a_message(self):
