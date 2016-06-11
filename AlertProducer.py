@@ -70,7 +70,8 @@ class AlertProducer(bootsteps.Step):
                         print "flag alert as sent %r" % alert
                         #flag alert as sent to avoid issues
                         if(db.flag_alert_sent(alert)):
-                            print "flagged alert as sent proceed fetch subs %r" % alert
+                            print "flagged alert as sent proceed fetch subs %r"\
+                             % alert
                             #fetch subs 4 this alert
                             subs = db.fetch_alert_subscribers(alert.service_id,
                                  data_offset)
@@ -83,7 +84,8 @@ class AlertProducer(bootsteps.Step):
                                     "network": sub.network,
                                     "sdp_id": alert.sdpid,
                                     "alert_type": alert.alert_type_id,
-                                    "correlator": str(alert.id) + "_" + str(sub.msisdn),
+                                    "correlator": str(alert.id) + "_" +
+                                     str(sub.msisdn),
                                     "linkId": None}
                                 self.publish_rabbit(message)
                             data_offset += 10000
