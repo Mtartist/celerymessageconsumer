@@ -12,3 +12,4 @@ kombu==3.0.35
 pytz==2016.4
 tornado==4.2
 wheel==0.26.0
+MySQL-python==1.2.5

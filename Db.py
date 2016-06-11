@@ -1,17 +1,13 @@
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.engine import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
-from sqlalchemy import func
+#from sqlalchemy import func
 
-
-Base = declarative_base()
-metadata = Base.metadata
 
 from utils import LocalConfigParser
 import requests
 from datetime import datetime
-from model import *
+from models import *
 
 
 class Db():
@@ -186,16 +182,20 @@ message : %r data %r " % e, payload)
         else:
             self.close()
 
-    def get_alerts_to_send(alert_offset=None):
+    def get_alerts_to_send(self, alert_offset=None):
         try:
             alertQuery = self.db_session.query(Alert)\
-                .filter_by(scheduled_time <= datetime.now(), sent=0)\
-                .order_by(created.desc()).limit(10)
+                .filter(Alert.sent == 0,
+                     Alert.scheduled_time <= datetime.now())\
+                .order_by(Alert.created.desc()).limit(10)
             self.logger.info("Alerts raw query :: %s" % alertQuery)
             alerts = alertQuery.all()
 
             if alerts:
                 return alerts
+            print "No alerts scheduled to sent"
+            self.logger.info("Found no alerts scheduled to sent")
+            return None
         except Exception, e:
             self.logger.error("Problem fetching alerts ::: %r" % e)
             self.db_session.remove()
@@ -206,8 +206,10 @@ message : %r data %r " % e, payload)
         subs = None
         try:
             subsQuery = self.db_session.query(Subscriber)\
-                .filter_by(service_id=service_id, status=1)\
-                .order_by(created.desc()).limit(10000).offset(data_offset)
+                .filter_by(Subscriber.service_id == service_id,
+                     Subscriber.status == 1)\
+                .order_by(Subscriber.created.desc())\
+                .limit(10000).offset(data_offset)
             self.logger.info("Subscribers raw query :: %s" % subsQuery)
             subs = subsQuery.all()
 

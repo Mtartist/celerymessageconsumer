@@ -33,7 +33,7 @@ class Publisher(object):
         q_message = self.get_queue_message(message)
 
         print("FOUND MESSAGE posting to Q: %r "
-         % q_message.get("mo"))
+         % q_message)
 
         try:
             conn = amqp.Connection(host=self.configs['rabbithost'],
