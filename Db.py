@@ -21,6 +21,7 @@ class Db():
 
         self.db_configs = LocalConfigParser.parse_configs("DB")
         self.sdp_configs = LocalConfigParser.parse_configs("SDP")
+        self.bulk_configs = LocalConfigParser.parse_configs("SDP_CONFIGS")
         self.host = self.db_configs['host']
         self.db = self.db_configs['db_name']
         self.username = self.db_configs['username']
@@ -110,9 +111,9 @@ class Db():
             self.close()
 
     def terminate_sms_operator(self, json_data):
-        self.logger.info("Received sendsmsapi message for terminationation %r"
+        self.logger.info("Received sendsms request for terminationation %r"
          % json_data)
-        url = self.bulk_configs["url"]
+        url = self.sdp_configs["url"]
 
         payload = {
             "msisdn": json_data.get('msisdn'),
@@ -124,18 +125,19 @@ class Db():
              or self.bulk_configs["bulk_code"],
             "correlator": json_data.get("correlator"),
             "service_id": json_data.get("sdpid")
-             or self.bulk_configs["service_id"]
+             or self.bulk_configs["service_id"],
+            "alert_id": json_data.get("alert_id")
         }
 
         outbox = self.outbox_message(payload)
-        self.logger.info("About to insert outbox_message : %r " % outbox)
+        self.logger.info("Created outbox_message : %r " % outbox)
 
         if not outbox:
             self.logger.error("Failed to create outbox message : (%r) "
               % payload)
             return True
-        self.logger.info("outbox not null : %s" % outbox.outbox_id)
-        payload['correlator'] = outbox.outbox_id
+        self.logger.info("outbox not null : %s" % outbox.id)
+        payload['correlator'] = outbox.id
 
         self.logger.info("Calling SDP URL FOR Sendsms api terminate: (%s, %r) "
          % (url, payload))
@@ -155,19 +157,22 @@ message : %r data %r " % e, payload)
     def outbox_message(self, message):
         outbox = None
         try:
+            trx = self.create_transaction('OUTBOX')
             self.logger.info("Found create outbox ...")
             outbox = Outbox(
-                shortcode=self.bulk_configs["access_code"],
-                network=message.get("network"),
-                profile_id=None,
-                linkid=message.get("linkid"),
-                retry_status=0,
-                sdp_id=self.bulk_configs["service_id"],
-                modified=datetime.now(),
+                alert_id=message.get("alert_id"),
                 text=message.get('message'),
                 msisdn=message.get("msisdn"),
-                date_created=datetime.now(),
-                date_sent=datetime.now(),
+                content_id_hash=message.get("content_id_hash") or None,
+                ref_number=message.get("correlator"),
+                transaction_id=trx.id,
+                dlr_status=1,
+                processed=1,
+                instance_id=1,
+                sends=1,
+                time_sent=datetime.now(),
+                created=datetime.now(),
+                modified=datetime.now()
             )
             self.db_session.add(outbox)
             self.db_session.flush()
@@ -177,7 +182,27 @@ message : %r data %r " % e, payload)
         except Exception, e:
             self.logger.error("Problem creating inbox message ...%r" % e)
             self.db_session.rollback()
-            self.publish_retry(outbox, 'outbox')
+            return None
+        else:
+            self.close()
+
+    def create_transaction(self, trx_model):
+        trx = None
+        try:
+            self.logger.info("Found create transaction ...")
+            trx = Transaction(
+                model=trx_model,
+                foreign_key=None,
+                created=datetime.now(),
+                modified=datetime.now()
+            )
+            self.db_session.add(trx)
+            self.db_session.flush()
+            self.logger.info("Transaction commit success ...")
+            return trx
+        except Exception, e:
+            self.logger.error("Problem creating inbox message ...%r" % e)
+            self.db_session.rollback()
             return None
         else:
             self.close()
@@ -206,10 +231,8 @@ message : %r data %r " % e, payload)
         subs = None
         try:
             subsQuery = self.db_session.query(Subscriber)\
-                .filter_by(Subscriber.service_id == service_id,
-                     Subscriber.status == 1)\
-                .order_by(Subscriber.created.desc())\
-                .limit(10000).offset(data_offset)
+                .filter(Subscriber.service_id == service_id,
+                     Subscriber.status == 1).limit(10000).offset(data_offset)
             self.logger.info("Subscribers raw query :: %s" % subsQuery)
             subs = subsQuery.all()
 
@@ -217,6 +240,35 @@ message : %r data %r " % e, payload)
                 return subs
         except Exception, e:
             self.logger.error("Problem fetching service subscibers ::: %r" % e)
+            self.db_session.remove()
+        else:
+            self.close()
+
+    def get_sub_msisdn(self, profile_id):
+        try:
+            subQuery = self.db_session.query(Profile)\
+                .filter(Profile.id == profile_id)
+            self.logger.info("Profile data raw query :: %s" % subQuery)
+            sub_data = subQuery.first()
+            self.logger.info("Profile msisdn %r" % sub_data.msisdn)
+            return sub_data
+        except Exception, e:
+            self.logger.error("Problem getting profile msisdn ::: %r" % e)
+            self.db_session.remove()
+        else:
+            self.close()
+
+    def count_alert_subs(self, service_id):
+        try:
+            subsQuery = self.db_session.query(Subscriber)\
+                .filter(Subscriber.service_id == service_id,
+                     Subscriber.status == 1)
+            self.logger.info("Subscribers count raw query :: %s" % subsQuery)
+            subs_total = subsQuery.count()
+            self.logger.info("Subscribers count %r" % subs_total)
+            return subs_total
+        except Exception, e:
+            self.logger.error("Problem counting service subscibers ::: %r" % e)
             self.db_session.remove()
         else:
             self.close()

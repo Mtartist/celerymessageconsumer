@@ -20,10 +20,11 @@ class Publisher(object):
             "msisdn": message.get("msisdn"),
             "message": message.get("message"),
             "network": message.get("network"),
-            "sdpId": message.get("sdp_id"),
+            "alert_type": message.get("alert_type"),
+            "alert_id": message.get("alert_id"),
             "alert_type": message.get("alert_type"),
             "correlator": message.get("correlator"),
-            "linkId": message.get("link_id")
+            "linkId": message.get("linkId")
             }
 
         return queue_message
@@ -51,7 +52,7 @@ class Publisher(object):
             print("Attempting to queue message")
             ch = conn.channel()
 
-            ch.exchange_declare(exchange=self.exchange_name, type="fanout",
+            ch.exchange_declare(exchange=self.exchange_name, type="direct",
                  durable=True, auto_delete=False)
 
             ch.queue_declare(queue=self.queue_name, durable=True,

@@ -39,5 +39,6 @@ if __name__ == '__main__':
         try:
             worker = Worker(conn)
             worker.run()
+            print "running work ..........."
         except KeyboardInterrupt:
             print('bye bye')

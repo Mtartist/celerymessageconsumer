@@ -5,6 +5,7 @@ from kombu import Exchange, Queue
 from Publisher import Publisher
 from utils import LocalConfigParser
 from Db import Db
+import time
 
 rabbit_configs = LocalConfigParser.parse_configs("RABBIT")
 sdp_configs = LocalConfigParser.parse_configs("SDP")
@@ -30,7 +31,7 @@ BROKER_URL = 'amqp://{user}:{password}@{host}:{port}//'.format(
     host=host,
     port=port
 )
-app = Celery(broker=BROKER_URL)
+app = Celery('producer', broker=BROKER_URL)
 
 logger = get_task_logger(__name__)
 
@@ -56,7 +57,6 @@ class AlertProducer(bootsteps.Step):
     def send_me_a_message(self):
         alerts = self.fetch_active_alerts()
         print "processing active alerts :: %r" % alerts
-        return alerts
 
     def fetch_active_alerts(self):
         try:
@@ -72,23 +72,48 @@ class AlertProducer(bootsteps.Step):
                         if(db.flag_alert_sent(alert)):
                             print "flagged alert as sent proceed fetch subs %r"\
                              % alert
-                            #fetch subs 4 this alert
-                            subs = db.fetch_alert_subscribers(alert.service_id,
-                                 data_offset)
-                            print "fetched subs for senting alert %r" % subs
-                            for sub in subs:
-                                print "looping pushing to queue %r" % sub
-                                message = {"short_code": alert.shortcode,
-                                    "msisdn": sub.msisdn,
-                                    "message": alert.message,
-                                    "network": sub.network,
-                                    "sdp_id": alert.sdpid,
-                                    "alert_type": alert.alert_type_id,
-                                    "correlator": str(alert.id) + "_" +
-                                     str(sub.msisdn),
-                                    "linkId": None}
+                            if alert.msisdn is not None and alert.msisdn != '':
+                                print "send quicksms %r" % alert.msisdn
+                                message = {"short_code":
+                                             alert.shortcode,
+                                            "msisdn": alert.msisdn,
+                                            "message": alert.message,
+                                            "network": 1,
+                                            "alert_type": alert.alert_type_id,
+                                            "alert_id": alert.id,
+                                            "correlator": str(alert.id) + "_" +
+                                             str(alert.msisdn),
+                                            "linkId": None}
                                 self.publish_rabbit(message)
-                            data_offset += 10000
+                            else:
+                                #fetch subs 4 this alert
+                                sub_count = db.count_alert_subs(alert.service_id)
+                                for data_offset in range(sub_count):
+                                    subs =\
+                                     db.fetch_alert_subscribers(alert.service_id,
+                                          data_offset)
+                                    print "fetched subs for senting alert\
+     %r offset %r" % (subs, data_offset)
+                                    if subs is not None:
+                                        for sub in subs:
+                                            print "looping pushing to queue %r"\
+                                             % sub
+                                            sub_details =\
+                                             db.get_sub_msisdn(sub.profile_id)
+                                            message = {"short_code":
+                                                 alert.shortcode,
+                                                "msisdn": sub_details.msisdn,
+                                                "message": alert.message,
+                                                "network": sub_details.network_id,
+                                                "alert_type": alert.alert_type_id,
+                                                "alert_id": alert.id,
+                                                "correlator": str(alert.id) + "_" +
+                                                 str(sub_details.msisdn),
+                                                "linkId": None}
+                                            self.publish_rabbit(message)
+                                        data_offset += 10000
+                else:
+                    time.sleep(30)
         except Exception, e:
             print ("error processing alerts to publish :: %r"
              % e)
