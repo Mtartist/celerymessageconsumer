@@ -1,0 +1,38 @@
+INSERT INTO `network` (`name`, `status`, `created`, `modified`)
+VALUES ('Safaricom', '1', now(), now());
+
+
+INSERT INTO `profile` (`msisdn`, `network_id`, `created`, `modified`)
+VALUES ('254711442224', '1', now(), now());
+
+INSERT INTO `subscriber` (`profile_id`, `service_id`, `status`, `transaction_id`, `created`, `modified`)
+VALUES ('1', '1', '1', '1', now(), now());
+
+ALTER TABLE `alert` AUTO_INCREMENT = 1000
+
+
+ALTER TABLE `contact_group_profile`
+DROP FOREIGN KEY `profile_id_refs_id_cb17ffd5`,
+ADD FOREIGN KEY (`profile_id`) REFERENCES `profile` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+
+ALTER TABLE `contact_group_profile`
+DROP FOREIGN KEY `contactgroup_id_refs_id_14ac1612`,
+ADD FOREIGN KEY (`contactgroup_id`) REFERENCES `contact_group` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+
+ALTER TABLE `contact_group`
+DROP FOREIGN KEY `client_id_refs_id_ff5b146c`,
+ADD FOREIGN KEY (`client_id`) REFERENCES `client` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+
+ALTER TABLE `bulk_sender_client`
+DROP FOREIGN KEY `bulksender_id_refs_id_3b6f718c`,
+ADD FOREIGN KEY (`bulksender_id`) REFERENCES `bulk_sender` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+
+ALTER TABLE `bulk_sender_client`
+DROP FOREIGN KEY `client_id_refs_id_0449955d`,
+ADD FOREIGN KEY (`client_id`) REFERENCES `client` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+
+ALTER TABLE `artist`
+DROP FOREIGN KEY `artist_ibfk_1`,
+ADD FOREIGN KEY (`keyword_id`) REFERENCES `keyword` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+
+
