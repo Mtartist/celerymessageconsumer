@@ -46,10 +46,12 @@ class AlertConsumerStep(bootsteps.ConsumerStep):
             logger.info("Began consume message :::: got body :: %r " % body)
             db = Db(logger)
             result = db.terminate_sms_operator(json.loads(body))
-            if result:
+            logger.info("message terminate result :: %r " % result.status_code)
+            if result.status_code == 200:
                 message.ack()
+            message.ack()
         except Exception, e:
-            #message.requeue()
+            message.requeue()
             logger.info("Exception on message consume:: %r " % e)
 
 app.steps['consumer'].add(AlertConsumerStep)
