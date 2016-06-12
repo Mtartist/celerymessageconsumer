@@ -1,0 +1,11 @@
+INSERT INTO `network` (`name`, `status`, `created`, `modified`)
+VALUES ('Safaricom', '1', now(), now());
+
+
+INSERT INTO `profile` (`msisdn`, `network_id`, `created`, `modified`)
+VALUES ('254711442224', '1', now(), now());
+
+INSERT INTO `subscriber` (`profile_id`, `service_id`, `status`, `transaction_id`, `created`, `modified`)
+VALUES ('1', '1', '1', '1', now(), now());
+
+ALTER TABLE `alert` AUTO_INCREMENT = 1000
